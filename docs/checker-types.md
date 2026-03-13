@@ -74,6 +74,7 @@ type Config struct {
 	Lenient    []string // source globs to validate when referenced but skip from missing-coverage reporting
 	Exclude    []string // glob patterns to exclude (matched against project-relative paths)
 	Fix        bool     // when true, automatically fix minor mismatches in-place
+	Files      []string // when non-empty, only check blocks in these doc files or referencing these source files
 }
 ```
 
