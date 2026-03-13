@@ -25,7 +25,7 @@ var initCmd = &cobra.Command{
 			return fmt.Errorf("checking %s: %w", configFile, err)
 		}
 
-		if err := writeConfig(configFile, defaultConfig()); err != nil {
+		if err := writeDefaultConfig(configFile); err != nil {
 			return err
 		}
 

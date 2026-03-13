@@ -68,7 +68,7 @@ func captureStdout(t *testing.T, fn func()) string {
 func TestLoadConfig(t *testing.T) {
 	dir := t.TempDir()
 	t.Chdir(dir)
-	if err := os.WriteFile(configFile, []byte(`{"docs":["docs"],"source":["src"],"exclude":["vendor/**"]}`), 0o644); err != nil {
+	if err := os.WriteFile(configFile, []byte(`{"docs":["docs"],"source":["src"],"lenient":["generated/**"],"exclude":["vendor/**"]}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -82,8 +82,37 @@ func TestLoadConfig(t *testing.T) {
 	if len(cfg.Source) != 1 || cfg.Source[0] != "src" {
 		t.Fatalf("unexpected source: %+v", cfg.Source)
 	}
+	if len(cfg.Lenient) != 1 || cfg.Lenient[0] != "generated/**" {
+		t.Fatalf("unexpected lenient: %+v", cfg.Lenient)
+	}
 	if len(cfg.Exclude) != 1 || cfg.Exclude[0] != "vendor/**" {
 		t.Fatalf("unexpected exclude: %+v", cfg.Exclude)
+	}
+}
+
+func TestLoadConfig_AllowsJSONCComments(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	if err := os.WriteFile(configFile, []byte(`{
+  // docs globs
+  "docs": ["docs/**/*.md"],
+  // source globs
+  "source": ["src/**/*.go"],
+  "lenient": [],
+  "exclude": []
+}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := loadConfig()
+	if err != nil {
+		t.Fatalf("loadConfig: %v", err)
+	}
+	if len(cfg.Docs) != 1 || cfg.Docs[0] != "docs/**/*.md" {
+		t.Fatalf("unexpected docs: %+v", cfg.Docs)
+	}
+	if len(cfg.Source) != 1 || cfg.Source[0] != "src/**/*.go" {
+		t.Fatalf("unexpected source: %+v", cfg.Source)
 	}
 }
 
@@ -176,6 +205,9 @@ func TestWriteConfig(t *testing.T) {
 	if !bytes.Contains(data, []byte(`"docs": [`)) || !bytes.Contains(data, []byte(`"source": [`)) {
 		t.Fatalf("unexpected config contents:\n%s", data)
 	}
+	if !bytes.Contains(data, []byte(`"lenient": []`)) {
+		t.Fatalf("expected explicit empty lenient array, got:\n%s", data)
+	}
 	if !bytes.Contains(data, []byte(`"exclude": []`)) {
 		t.Fatalf("expected explicit empty exclude array, got:\n%s", data)
 	}
@@ -202,6 +234,17 @@ func TestInitCmd(t *testing.T) {
 		t.Fatalf("unexpected output: %q", got)
 	}
 
+	data, err := os.ReadFile(configFile)
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	if !bytes.Contains(data, []byte(`// Markdown files to scan for documented code blocks.`)) {
+		t.Fatalf("expected init config comments, got:\n%s", data)
+	}
+	if !bytes.Contains(data, []byte(`"lenient": []`)) {
+		t.Fatalf("expected lenient entry in init config, got:\n%s", data)
+	}
+
 	cfg, err := loadConfig()
 	if err != nil {
 		t.Fatalf("loadConfig: %v", err)
@@ -211,6 +254,9 @@ func TestInitCmd(t *testing.T) {
 	}
 	if len(cfg.Source) < 4 || cfg.Source[0] != "**/*.go" || cfg.Source[1] != "**/*.ts" {
 		t.Fatalf("unexpected source: %+v", cfg.Source)
+	}
+	if cfg.Lenient == nil || len(cfg.Lenient) != 0 {
+		t.Fatalf("unexpected lenient: %+v", cfg.Lenient)
 	}
 	if cfg.Exclude == nil || len(cfg.Exclude) != 0 {
 		t.Fatalf("unexpected exclude: %+v", cfg.Exclude)

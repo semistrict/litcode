@@ -32,28 +32,24 @@ func Check(cfg Config) (*Result, error) {
 	}
 ```
 
-Absolute paths are needed because code blocks use relative `file=` references
-that must be joined against each source root. Two separate exclude lists are
-built because validation and coverage have different default scopes:
+The checker expands the configured doc and source patterns up front, then
+builds separate exclude lists because validation and coverage have different
+default scopes:
 
 ```go file=internal/checker/checker.go
-	var absSourceDirs []string
-	for _, dir := range cfg.SourceDirs {
-		abs, err := filepath.Abs(dir)
-		if err != nil {
-			return nil, err
-		}
-		absSourceDirs = append(absSourceDirs, abs)
+	sourceIndex, err := filematch.Index(cfg.SourceDirs)
+	if err != nil {
+		return nil, fmt.Errorf("collecting source files: %w", err)
 	}
 ```
 
-User-supplied excludes skip both validation and missing coverage. Default
-excludes only suppress missing coverage for test code; fixtures and vendored
-code are skipped entirely:
+`Lenient` patterns only suppress missing coverage. `Exclude` patterns suppress
+both validation and coverage. Fixtures and vendored code are skipped entirely:
 
 ```go file=internal/checker/checker.go
 	validationExcludes := append(DefaultValidationExclude, cfg.Exclude...)
-	coverageExcludes := append(DefaultExclude, cfg.Exclude...)
+	coverageExcludes := append(DefaultExclude, cfg.Lenient...)
+	coverageExcludes = append(coverageExcludes, cfg.Exclude...)
 ```
 
 Each markdown file is parsed to extract code blocks:

@@ -93,6 +93,7 @@ The `RunE` function loads `.litcode.json`, builds a `Config`, and calls
 		cfg := checker.Config{
 			DocsDirs:   litcodeCfg.Docs,
 			SourceDirs: litcodeCfg.Source,
+			Lenient:    litcodeCfg.Lenient,
 			Exclude:    litcodeCfg.Exclude,
 		}
 

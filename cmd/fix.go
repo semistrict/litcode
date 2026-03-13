@@ -29,6 +29,7 @@ This is equivalent to running "litcode check" but with automatic fixing enabled.
 		cfg := checker.Config{
 			DocsDirs:   litcodeCfg.Docs,
 			SourceDirs: litcodeCfg.Source,
+			Lenient:    litcodeCfg.Lenient,
 			Exclude:    litcodeCfg.Exclude,
 			Fix:        true,
 		}

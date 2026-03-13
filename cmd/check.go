@@ -30,7 +30,7 @@ func init() {
 }
 
 var checkCmd = &cobra.Command{
-	Use:           "check",
+	Use:           "check [files...]",
 	Short:         "Check that docs cover all source lines",
 	SilenceUsage:  true,
 	SilenceErrors: true,
@@ -51,7 +51,9 @@ Use "litcode fix" to automatically correct minor mismatches (line drift, whitesp
 		cfg := checker.Config{
 			DocsDirs:   litcodeCfg.Docs,
 			SourceDirs: litcodeCfg.Source,
+			Lenient:    litcodeCfg.Lenient,
 			Exclude:    litcodeCfg.Exclude,
+			Files:      args,
 		}
 
 		result, err := checker.Check(cfg)

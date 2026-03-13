@@ -46,8 +46,10 @@ type Warning struct {
 type Config struct {
 	DocsDirs   []string // file patterns for markdown docs, relative to the current working directory
 	SourceDirs []string // file patterns for source files, relative to the current working directory
+	Lenient    []string // source globs to validate when referenced but skip from missing-coverage reporting
 	Exclude    []string // glob patterns to exclude (matched against project-relative paths)
 	Fix        bool     // when true, automatically fix minor mismatches in-place
+	Files      []string // when non-empty, only check blocks in these doc files or referencing these source files
 }
 
 // DefaultExclude patterns that do not require missing-coverage reporting.

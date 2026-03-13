@@ -16,5 +16,6 @@
     "**/*.cpp",
     "**/*.hpp"
   ],
+  "lenient": [],
   "exclude": []
 }

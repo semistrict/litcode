@@ -69,9 +69,10 @@ The `Config` struct controls what gets scanned:
 
 ```go file=internal/checker/types.go
 type Config struct {
-	DocsDirs   []string // directories to scan for .md files
-	SourceDirs []string // directories to resolve file= references against
-	Exclude    []string // glob patterns to exclude (matched against relative paths)
+	DocsDirs   []string // file patterns for markdown docs, relative to the current working directory
+	SourceDirs []string // file patterns for source files, relative to the current working directory
+	Lenient    []string // source globs to validate when referenced but skip from missing-coverage reporting
+	Exclude    []string // glob patterns to exclude (matched against project-relative paths)
 	Fix        bool     // when true, automatically fix minor mismatches in-place
 }
 ```

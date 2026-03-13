@@ -127,6 +127,26 @@ func TestCheck_ExcludePattern(t *testing.T) {
 	}
 }
 
+func TestCheck_LenientPatternSkipsMissingButStillValidates(t *testing.T) {
+	base := filepath.Join(testdataDir(), "partial")
+	cfg := checker.Config{
+		DocsDirs:   []string{filepath.Join(base, "docs")},
+		SourceDirs: []string{base},
+		Lenient:    []string{"src/math.go"},
+	}
+	result, err := checker.Check(cfg)
+	if err != nil {
+		t.Fatalf("Check: %v", err)
+	}
+
+	if len(result.Invalid) != 0 {
+		t.Errorf("expected 0 invalid, got %d", len(result.Invalid))
+	}
+	if len(result.Missing) != 0 {
+		t.Errorf("expected 0 missing with lenient, got %d: %+v", len(result.Missing), result.Missing)
+	}
+}
+
 func TestCheck_TestFilesExcludedByDefault(t *testing.T) {
 	base := filepath.Join(testdataDir(), "sample")
 	cfg := checker.Config{
@@ -163,6 +183,26 @@ func TestCheck_TestFilesStillValidateWhenReferenced(t *testing.T) {
 	}
 	if len(result.Missing) != 0 {
 		t.Fatalf("expected 0 missing ranges for test file coverage, got %+v", result.Missing)
+	}
+}
+
+func TestCheck_LenientStillReportsInvalidReferencedBlocks(t *testing.T) {
+	base := filepath.Join(testdataDir(), "mismatch")
+	cfg := checker.Config{
+		DocsDirs:   []string{filepath.Join(base, "docs")},
+		SourceDirs: []string{base},
+		Lenient:    []string{"src/hello.go"},
+	}
+	result, err := checker.Check(cfg)
+	if err != nil {
+		t.Fatalf("Check: %v", err)
+	}
+
+	if len(result.Invalid) != 1 {
+		t.Fatalf("expected 1 invalid block, got %d", len(result.Invalid))
+	}
+	if result.Invalid[0].Reason != "content mismatch" {
+		t.Fatalf("reason = %q, want %q", result.Invalid[0].Reason, "content mismatch")
 	}
 }
 
@@ -785,6 +825,139 @@ func TestCheck_InvalidBlockSuppressesMissing(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+func TestCheck_FilesFilterByDocFile(t *testing.T) {
+	// Setup: two doc files, two source files. alpha.md covers alpha.go fully.
+	// beta.md only partially covers beta.go (missing the multiply func).
+	// Without filtering: missing coverage for beta.go.
+	// With Files=[alpha.md]: no missing (beta.go not checked).
+	tmp := t.TempDir()
+	docsDir := filepath.Join(tmp, "docs")
+	srcDir := filepath.Join(tmp, "src")
+	os.MkdirAll(docsDir, 0o755)
+	os.MkdirAll(srcDir, 0o755)
+
+	os.WriteFile(filepath.Join(srcDir, "alpha.go"), []byte("package main\n\nfunc greet() string {\n\treturn \"hi\"\n}\n"), 0o644)
+	os.WriteFile(filepath.Join(srcDir, "beta.go"), []byte("package main\n\nfunc add(a, b int) int {\n\treturn a + b\n}\n\nfunc multiply(a, b int) int {\n\treturn a * b\n}\n"), 0o644)
+
+	os.WriteFile(filepath.Join(docsDir, "alpha.md"), []byte("# Alpha\n\n```go file=src/alpha.go\nfunc greet() string {\n\treturn \"hi\"\n}\n```\n"), 0o644)
+	os.WriteFile(filepath.Join(docsDir, "beta.md"), []byte("# Beta\n\n```go file=src/beta.go lines=3-5\nfunc add(a, b int) int {\n\treturn a + b\n}\n```\n"), 0o644)
+
+	// Sanity: unfiltered check should have missing coverage for beta.go
+	unfilteredCfg := checker.Config{
+		DocsDirs:   []string{docsDir},
+		SourceDirs: []string{tmp},
+	}
+	unfiltered, err := checker.Check(unfilteredCfg)
+	if err != nil {
+		t.Fatalf("unfiltered Check: %v", err)
+	}
+	hasBetaMissing := false
+	for _, m := range unfiltered.Missing {
+		if strings.Contains(m.File, "beta.go") {
+			hasBetaMissing = true
+		}
+	}
+	if !hasBetaMissing {
+		t.Fatal("sanity: unfiltered check should have missing coverage for beta.go")
+	}
+
+	// Filtered to alpha.md: should not report missing for beta.go
+	filteredCfg := checker.Config{
+		DocsDirs:   []string{docsDir},
+		SourceDirs: []string{tmp},
+		Files:      []string{filepath.Join(docsDir, "alpha.md")},
+	}
+	filtered, err := checker.Check(filteredCfg)
+	if err != nil {
+		t.Fatalf("filtered Check: %v", err)
+	}
+	for _, m := range filtered.Missing {
+		if strings.Contains(m.File, "beta.go") {
+			t.Errorf("beta.go should not appear in missing when filtering by alpha.md: %+v", m)
+		}
+	}
+	for _, inv := range filtered.Invalid {
+		if strings.Contains(inv.SourceFile, "beta") {
+			t.Errorf("beta blocks should not be checked when filtering by alpha.md: %+v", inv)
+		}
+	}
+}
+
+func TestCheck_FilesFilterBySourceFile(t *testing.T) {
+	// Same setup as above but filter by source file.
+	// With Files=[src/alpha.go]: only alpha.go blocks are checked.
+	tmp := t.TempDir()
+	docsDir := filepath.Join(tmp, "docs")
+	srcDir := filepath.Join(tmp, "src")
+	os.MkdirAll(docsDir, 0o755)
+	os.MkdirAll(srcDir, 0o755)
+
+	os.WriteFile(filepath.Join(srcDir, "alpha.go"), []byte("package main\n\nfunc greet() string {\n\treturn \"hi\"\n}\n"), 0o644)
+	os.WriteFile(filepath.Join(srcDir, "beta.go"), []byte("package main\n\nfunc add(a, b int) int {\n\treturn a + b\n}\n\nfunc multiply(a, b int) int {\n\treturn a * b\n}\n"), 0o644)
+
+	os.WriteFile(filepath.Join(docsDir, "alpha.md"), []byte("# Alpha\n\n```go file=src/alpha.go\nfunc greet() string {\n\treturn \"hi\"\n}\n```\n"), 0o644)
+	os.WriteFile(filepath.Join(docsDir, "beta.md"), []byte("# Beta\n\n```go file=src/beta.go lines=3-5\nfunc add(a, b int) int {\n\treturn a + b\n}\n```\n"), 0o644)
+
+	filteredCfg := checker.Config{
+		DocsDirs:   []string{docsDir},
+		SourceDirs: []string{tmp},
+		Files:      []string{filepath.Join(srcDir, "alpha.go")},
+	}
+	filtered, err := checker.Check(filteredCfg)
+	if err != nil {
+		t.Fatalf("filtered Check: %v", err)
+	}
+	for _, m := range filtered.Missing {
+		if strings.Contains(m.File, "beta.go") {
+			t.Errorf("beta.go should not appear in missing when filtering by alpha.go: %+v", m)
+		}
+	}
+}
+
+func TestCheck_FilesFilterNoMatchSkipsEverything(t *testing.T) {
+	// When Files contains a file that doesn't match any doc or source,
+	// all blocks are skipped so there should be no results at all.
+	// Use partial coverage so unfiltered check would have results.
+	tmp := t.TempDir()
+	docsDir := filepath.Join(tmp, "docs")
+	srcDir := filepath.Join(tmp, "src")
+	os.MkdirAll(docsDir, 0o755)
+	os.MkdirAll(srcDir, 0o755)
+
+	os.WriteFile(filepath.Join(srcDir, "alpha.go"), []byte("package main\n\nfunc greet() string {\n\treturn \"hi\"\n}\n\nfunc farewell() string {\n\treturn \"bye\"\n}\n"), 0o644)
+	os.WriteFile(filepath.Join(docsDir, "alpha.md"), []byte("# Alpha\n\n```go file=src/alpha.go lines=3-5\nfunc greet() string {\n\treturn \"hi\"\n}\n```\n"), 0o644)
+
+	// Sanity: unfiltered should have missing coverage for farewell()
+	unfilteredCfg := checker.Config{
+		DocsDirs:   []string{docsDir},
+		SourceDirs: []string{tmp},
+	}
+	unfiltered, err := checker.Check(unfilteredCfg)
+	if err != nil {
+		t.Fatalf("unfiltered Check: %v", err)
+	}
+	if len(unfiltered.Missing) == 0 {
+		t.Fatal("sanity: unfiltered check should have missing coverage")
+	}
+
+	// Filtered to nonexistent file: nothing should be checked
+	cfg := checker.Config{
+		DocsDirs:   []string{docsDir},
+		SourceDirs: []string{tmp},
+		Files:      []string{"nonexistent.go"},
+	}
+	result, err := checker.Check(cfg)
+	if err != nil {
+		t.Fatalf("Check: %v", err)
+	}
+	if len(result.Invalid) != 0 {
+		t.Errorf("expected 0 invalid, got %d", len(result.Invalid))
+	}
+	if len(result.Missing) != 0 {
+		t.Errorf("expected 0 missing, got %d: %+v", len(result.Missing), result.Missing)
 	}
 }
 

@@ -14,8 +14,10 @@ Initialize a repository:
 litcode init
 ```
 
-That writes a `.litcode.json` with `docs`, `source`, and an empty `exclude`
-array using file patterns relative to the repository root.
+That writes a `.litcode.json` with `docs`, `source`, `lenient`, and `exclude`
+arrays using file patterns relative to the repository root. `lenient` files are
+still validated when referenced, but they do not require full line-by-line
+documentation coverage.
 
 Or run it without installing:
 

@@ -36,7 +36,8 @@ func Check(cfg Config) (*Result, error) {
 	// missing coverage. Default excludes only suppress missing coverage for
 	// test code; fixtures and vendored code are skipped entirely.
 	validationExcludes := append(DefaultValidationExclude, cfg.Exclude...)
-	coverageExcludes := append(DefaultExclude, cfg.Exclude...)
+	coverageExcludes := append(DefaultExclude, cfg.Lenient...)
+	coverageExcludes = append(coverageExcludes, cfg.Exclude...)
 
 	// Parse all code blocks from markdown files.
 	var allBlocks []markdown.CodeBlock
@@ -46,6 +47,40 @@ func Check(cfg Config) (*Result, error) {
 			return nil, fmt.Errorf("parsing %s: %w", mf, err)
 		}
 		allBlocks = append(allBlocks, blocks...)
+	}
+
+	// When Files is set, filter blocks to only those from matching doc files
+	// or referencing matching source files.
+	if len(cfg.Files) > 0 {
+		fileSet := make(map[string]bool, len(cfg.Files))
+		for _, f := range cfg.Files {
+			abs, err := filepath.Abs(f)
+			if err == nil {
+				fileSet[abs] = true
+			}
+			// Also store the original (for relative source file matching).
+			fileSet[filepath.ToSlash(filepath.Clean(f))] = true
+		}
+		var filtered []markdown.CodeBlock
+		for _, block := range allBlocks {
+			// Match by doc file (absolute path).
+			if fileSet[block.DocFile] {
+				filtered = append(filtered, block)
+				continue
+			}
+			// Match by source file reference.
+			srcRel := filepath.ToSlash(filepath.Clean(block.File))
+			if fileSet[srcRel] {
+				filtered = append(filtered, block)
+				continue
+			}
+			// Match by resolved absolute source path.
+			if absPath, ok := sourceIndex[srcRel]; ok && fileSet[absPath] {
+				filtered = append(filtered, block)
+				continue
+			}
+		}
+		allBlocks = filtered
 	}
 
 	// coverage[absPath] = set of 1-based line numbers covered by valid blocks.
