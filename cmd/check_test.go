@@ -38,33 +38,6 @@ func captureStderr(t *testing.T, fn func()) string {
 	return string(data)
 }
 
-func captureStdout(t *testing.T, fn func()) string {
-	t.Helper()
-	old := os.Stdout
-	r, w, err := os.Pipe()
-	if err != nil {
-		t.Fatal(err)
-	}
-	os.Stdout = w
-	defer func() {
-		os.Stdout = old
-	}()
-
-	fn()
-
-	if err := w.Close(); err != nil {
-		t.Fatal(err)
-	}
-	data, err := io.ReadAll(r)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := r.Close(); err != nil {
-		t.Fatal(err)
-	}
-	return string(data)
-}
-
 func TestLoadConfig(t *testing.T) {
 	dir := t.TempDir()
 	t.Chdir(dir)

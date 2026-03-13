@@ -2,7 +2,6 @@ package comments_test
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	sitter "github.com/smacker/go-tree-sitter"
@@ -56,5 +55,5 @@ func dumpNode(t *testing.T, n *sitter.Node, src []byte, depth int) {
 	for i := 0; i < int(n.ChildCount()); i++ {
 		dumpNode(t, n.Child(i), src, depth+1)
 	}
-	_ = fmt.Sprintf("") // avoid unused import
+
 }

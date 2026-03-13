@@ -29,7 +29,7 @@ var initCmd = &cobra.Command{
 			return err
 		}
 
-		fmt.Fprintf(cmd.OutOrStdout(), "Created %s\n", configFile)
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Created %s\n", configFile)
 		return nil
 	},
 }

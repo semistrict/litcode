@@ -1,13 +1,19 @@
 OUT_DIR := out
 BIN_DIR := $(OUT_DIR)
 
-.PHONY: check fix test bench build html-docs cover
+.PHONY: check fix test bench build html-docs cover lint fmt
 
 check:
 	go run . check
 
 fix:
 	go run . fix
+
+lint:
+	golangci-lint run ./...
+
+fmt:
+	gofmt -w -s $$(find . -name '*.go')
 
 test:
 	go test ./...

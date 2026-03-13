@@ -178,7 +178,7 @@ func RenderFile(srcPath, relPath, outDir string, sourceDirs []string, out io.Wri
 		if relOut, err := filepath.Rel(cwd, outPath); err == nil && relOut != "" && relOut != "." && !strings.HasPrefix(relOut, ".."+string(os.PathSeparator)) && relOut != ".." {
 			displayPath = relOut
 		}
-		fmt.Fprintln(out, displayPath)
+		_, _ = fmt.Fprintln(out, displayPath)
 	}
 	return nil
 }

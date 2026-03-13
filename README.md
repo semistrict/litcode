@@ -28,3 +28,14 @@ go run github.com/semistrict/litcode@latest check
 The repository also includes a Codex skill for using `litcode` against other repositories:
 
 - [skill/SKILL.md](/Users/ramon/src/lit/skill/SKILL.md)
+
+## GitHub Pages
+
+This repo includes a GitHub Actions workflow at
+`.github/workflows/pages.yml` that builds the HTML docs with:
+
+```sh
+make html-docs
+```
+
+and deploys the generated site to GitHub Pages on pushes to `main`.

@@ -23,12 +23,16 @@ type CodeBlock struct {
 var infoRegex = regexp.MustCompile(`^(\w+)\s+file=(\S+)(?:\s+lines=(\d+)(?:-(\d+))?)?$`)
 
 // ParseFile extracts code blocks with file/line references from a markdown file.
-func ParseFile(path string) ([]CodeBlock, error) {
+func ParseFile(path string) (_ []CodeBlock, err error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer func() {
+		if cerr := f.Close(); cerr != nil && err == nil {
+			err = cerr
+		}
+	}()
 
 	var blocks []CodeBlock
 	scanner := bufio.NewScanner(f)
