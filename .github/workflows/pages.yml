@@ -1,0 +1,63 @@
+name: Deploy Pages
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - uses: actions/configure-pages@v5
+
+      - name: Build HTML docs
+        run: |
+          rm -rf out/docs
+          make html-docs
+
+      - name: Prepare Pages artifact
+        id: prepare
+        run: |
+          if [ -d out/docs/docs ]; then
+            site_root=out/docs/docs
+          else
+            site_root=out/docs
+          fi
+
+          if [ -f "$site_root/overview.html" ] && [ ! -f "$site_root/index.html" ]; then
+            cp "$site_root/overview.html" "$site_root/index.html"
+          fi
+          touch "$site_root/.nojekyll"
+          echo "site_root=$site_root" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ${{ steps.prepare.outputs.site_root }}
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
