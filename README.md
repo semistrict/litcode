@@ -25,6 +25,12 @@ Or run it without installing:
 go run github.com/semistrict/litcode@latest check
 ```
 
+## Demo
+
+Short demo of `litcode init` and `litcode check`:
+
+![litcode demo](assets/litcode-demo.gif)
+
 The repository also includes a Codex skill for using `litcode` against other repositories:
 
 - [skill/SKILL.md](/Users/ramon/src/lit/skill/SKILL.md)
