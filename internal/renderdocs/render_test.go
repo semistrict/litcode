@@ -43,7 +43,7 @@ func TestRenderPage_RewritesLinksAndMermaid(t *testing.T) {
 		"    title function: ParseFile\n" +
 		"```\n")
 
-	page, err := renderPage(testRenderer(), "02-markdown-parsing.md", src)
+	page, err := renderPage(testRenderer(), "02-markdown-parsing.md", src, nil)
 	if err != nil {
 		t.Fatalf("renderPage: %v", err)
 	}
@@ -66,6 +66,28 @@ func TestRenderPage_RewritesLinksAndMermaid(t *testing.T) {
 	}
 	if !strings.Contains(html, `theme: "dark"`) {
 		t.Fatalf("expected dark mermaid theme, got:\n%s", html)
+	}
+}
+
+func TestRenderPage_DecoratesSourceBlocks(t *testing.T) {
+	src := []byte("# Parser\n\n<!--litcode-block:0-->\n```go\nfunc greet() string { return \"hi\" }\n```\n")
+
+	page, err := renderPage(testRenderer(), "02-markdown-parsing.md", src, []sourceBlockMeta{{
+		File:      "internal/markdown/parser.go",
+		GitHubURL: "https://github.com/semistrict/litcode/blob/abcdef/internal/markdown/parser.go#L12-L16",
+		StartLine: 12,
+		EndLine:   16,
+	}})
+	if err != nil {
+		t.Fatalf("renderPage: %v", err)
+	}
+
+	html := string(page)
+	if !strings.Contains(html, `class="litcode-link"`) {
+		t.Fatalf("expected GitHub link decoration, got:\n%s", html)
+	}
+	if !strings.Contains(html, `href="https://github.com/semistrict/litcode/blob/abcdef/internal/markdown/parser.go#L12-L16"`) {
+		t.Fatalf("expected GitHub line link, got:\n%s", html)
 	}
 }
 
@@ -181,5 +203,87 @@ func TestRenderTree_ExpandsAbbreviatedBlocksBeforeRendering(t *testing.T) {
 	}
 	if !strings.Contains(string(html), ":=") {
 		t.Fatalf("expected rendered HTML to include expanded middle lines, got:\n%s", string(html))
+	}
+}
+
+func TestRenderTree_DecoratesBlocksWithGitHubLinks(t *testing.T) {
+	rootDir := t.TempDir()
+	docsDir := filepath.Join(rootDir, "docs")
+	srcDir := filepath.Join(rootDir, "src")
+	outDir := filepath.Join(rootDir, "out", "docs")
+
+	if err := os.MkdirAll(docsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(srcDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	source := "package example\n\nfunc greet() string {\n\treturn \"hi\"\n}\n"
+	if err := os.WriteFile(filepath.Join(srcDir, "example.go"), []byte(source), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	doc := "# Example\n\n```go file=src/example.go lines=3-5\nfunc greet() string {\n\treturn \"hi\"\n}\n```\n"
+	if err := os.WriteFile(filepath.Join(docsDir, "example.md"), []byte(doc), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := RenderTree(docsDir, outDir, []string{rootDir}, nil); err != nil {
+		t.Fatalf("RenderTree: %v", err)
+	}
+
+	page, err := os.ReadFile(filepath.Join(outDir, "example.html"))
+	if err != nil {
+		t.Fatalf("read example.html: %v", err)
+	}
+	html := string(page)
+	if !strings.Contains(html, `href="https://github.com/semistrict/litcode/blob/`) {
+		t.Fatalf("expected GitHub link in rendered page, got:\n%s", html)
+	}
+	if !strings.Contains(html, `src/example.go#L3-L5`) {
+		t.Fatalf("expected GitHub line range in rendered page, got:\n%s", html)
+	}
+}
+
+func TestGitHubRepoURL(t *testing.T) {
+	tests := []struct {
+		name   string
+		remote string
+		want   string
+		ok     bool
+	}{
+		{
+			name:   "ssh scp style",
+			remote: "git@github.com:semistrict/litcode.git",
+			want:   "https://github.com/semistrict/litcode",
+			ok:     true,
+		},
+		{
+			name:   "ssh url",
+			remote: "ssh://git@github.com/semistrict/litcode.git",
+			want:   "https://github.com/semistrict/litcode",
+			ok:     true,
+		},
+		{
+			name:   "https",
+			remote: "https://github.com/semistrict/litcode.git",
+			want:   "https://github.com/semistrict/litcode",
+			ok:     true,
+		},
+		{
+			name:   "non github",
+			remote: "git@gitlab.com:semistrict/litcode.git",
+			want:   "",
+			ok:     false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, ok := githubRepoURL(tc.remote)
+			if ok != tc.ok || got != tc.want {
+				t.Fatalf("githubRepoURL(%q) = (%q, %v), want (%q, %v)", tc.remote, got, ok, tc.want, tc.ok)
+			}
+		})
 	}
 }
