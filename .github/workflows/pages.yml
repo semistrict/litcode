@@ -19,14 +19,14 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6.0.2
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6.3.0
         with:
           go-version-file: go.mod
           cache: true
 
-      - uses: actions/configure-pages@v5
+      - uses: actions/configure-pages@v5.0.0
 
       - name: Build HTML docs
         run: |
@@ -48,7 +48,7 @@ jobs:
           touch "$site_root/.nojekyll"
           echo "site_root=$site_root" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v4.0.0
         with:
           path: ${{ steps.prepare.outputs.site_root }}
 
@@ -60,4 +60,4 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v4.0.5
