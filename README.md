@@ -39,3 +39,7 @@ make html-docs
 ```
 
 and deploys the generated site to GitHub Pages on pushes to `main`.
+
+Live docs (for this repo):
+
+- https://semistrict.github.io/litcode/
