@@ -61,6 +61,12 @@ func TestRenderPage_RewritesLinksAndMermaid(t *testing.T) {
 	if !strings.Contains(html, `<title>Parser</title>`) {
 		t.Fatalf("expected title from heading, got:\n%s", html)
 	}
+	if !strings.Contains(html, `color-scheme: dark;`) {
+		t.Fatalf("expected dark mode defaults, got:\n%s", html)
+	}
+	if !strings.Contains(html, `theme: "dark"`) {
+		t.Fatalf("expected dark mermaid theme, got:\n%s", html)
+	}
 }
 
 func TestRenderTree_WritesHTMLFiles(t *testing.T) {

@@ -35,21 +35,21 @@ var (
   <style>
 {{ .ChromaCSS }}
     :root {
-      color-scheme: light;
-      --bg: #f5f1e8;
-      --panel: #fffdf8;
-      --text: #1f1b16;
-      --muted: #6a6258;
-      --accent: #0d5c63;
-      --border: #d8cfc3;
-      --code-bg: #f0eadf;
+      color-scheme: dark;
+      --bg: #11151c;
+      --panel: #171d26;
+      --text: #edf2f7;
+      --muted: #9aa7b8;
+      --accent: #7bdff2;
+      --border: #2b3645;
+      --code-bg: #202938;
     }
     * { box-sizing: border-box; }
     body {
       margin: 0;
       background:
-        radial-gradient(circle at top left, rgba(13, 92, 99, 0.10), transparent 28rem),
-        linear-gradient(180deg, #f8f4ec 0%, var(--bg) 100%);
+        radial-gradient(circle at top left, rgba(123, 223, 242, 0.16), transparent 28rem),
+        linear-gradient(180deg, #151b24 0%, var(--bg) 100%);
       color: var(--text);
       font-family: Georgia, "Iowan Old Style", "Palatino Linotype", serif;
       line-height: 1.65;
@@ -60,11 +60,11 @@ var (
       padding: 3rem 1.5rem 5rem;
     }
     article {
-      background: rgba(255, 253, 248, 0.9);
+      background: rgba(23, 29, 38, 0.92);
       border: 1px solid var(--border);
       border-radius: 18px;
       padding: 2rem;
-      box-shadow: 0 18px 48px rgba(31, 27, 22, 0.08);
+      box-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
       backdrop-filter: blur(8px);
     }
     h1, h2, h3 {
@@ -121,7 +121,7 @@ var (
   </main>
   <script type="module">
     import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
-    mermaid.initialize({ startOnLoad: true, theme: "neutral" });
+    mermaid.initialize({ startOnLoad: true, theme: "dark" });
   </script>
 </body>
 </html>
