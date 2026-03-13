@@ -39,7 +39,7 @@ Use this skill when a repository uses `litcode` to keep markdown documentation a
 
 ## Let documentation drive code structure
 
-Writing the narrative is a design tool, not just a documentation step. If a function is hard to explain clearly in prose, that's a signal to refactor it — split it, rename it, simplify it — until the explanation flows naturally. Allow the act of documenting to inform and improve the code's structure.
+Writing the narrative is a design tool, not just a documentation step. If you hit awkwardness while documenting — a function that's hard to explain, a block that needs too many caveats, tangled control flow that resists a clean narrative — treat that as a smell test. Refactor the source code (split functions, rename things, simplify logic) until the explanation flows naturally. The documentation difficulty is surfacing real complexity that readers and maintainers will also struggle with.
 
 ## Good defaults
 

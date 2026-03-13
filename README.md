@@ -8,6 +8,15 @@ Install it:
 go install github.com/semistrict/litcode@latest
 ```
 
+Initialize a repository:
+
+```sh
+litcode init
+```
+
+That writes a `.litcode.json` with `docs`, `source`, and an empty `exclude`
+array using file patterns relative to the repository root.
+
 Or run it without installing:
 
 ```sh

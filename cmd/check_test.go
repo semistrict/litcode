@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bytes"
 	"io"
 	"os"
 	"path/filepath"
@@ -20,6 +21,33 @@ func captureStderr(t *testing.T, fn func()) string {
 	os.Stderr = w
 	defer func() {
 		os.Stderr = old
+	}()
+
+	fn()
+
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+	data, err := io.ReadAll(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := r.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return string(data)
+}
+
+func captureStdout(t *testing.T, fn func()) string {
+	t.Helper()
+	old := os.Stdout
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stdout = w
+	defer func() {
+		os.Stdout = old
 	}()
 
 	fn()
@@ -130,5 +158,74 @@ func TestCheckHelpers(t *testing.T) {
 	diff := renderDiff("+ added\n- removed\n")
 	if !strings.Contains(diff, "+ added") || !strings.Contains(diff, "- removed") {
 		t.Fatalf("renderDiff missing changed lines: %q", diff)
+	}
+}
+
+func TestWriteConfig(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, configFile)
+
+	if err := writeConfig(path, defaultConfig()); err != nil {
+		t.Fatalf("writeConfig: %v", err)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	if !bytes.Contains(data, []byte(`"docs": [`)) || !bytes.Contains(data, []byte(`"source": [`)) {
+		t.Fatalf("unexpected config contents:\n%s", data)
+	}
+	if !bytes.Contains(data, []byte(`"exclude": []`)) {
+		t.Fatalf("expected explicit empty exclude array, got:\n%s", data)
+	}
+	if data[len(data)-1] != '\n' {
+		t.Fatalf("config file should end with newline")
+	}
+}
+
+func TestInitCmd(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	var stdout bytes.Buffer
+	initCmd.SetOut(&stdout)
+	t.Cleanup(func() {
+		initCmd.SetOut(os.Stdout)
+	})
+
+	if err := initCmd.RunE(initCmd, nil); err != nil {
+		t.Fatalf("initCmd.RunE: %v", err)
+	}
+
+	if got := stdout.String(); !strings.Contains(got, "Created .litcode.json") {
+		t.Fatalf("unexpected output: %q", got)
+	}
+
+	cfg, err := loadConfig()
+	if err != nil {
+		t.Fatalf("loadConfig: %v", err)
+	}
+	if len(cfg.Docs) != 1 || cfg.Docs[0] != "docs/**/*.md" {
+		t.Fatalf("unexpected docs: %+v", cfg.Docs)
+	}
+	if len(cfg.Source) < 4 || cfg.Source[0] != "**/*.go" || cfg.Source[1] != "**/*.ts" {
+		t.Fatalf("unexpected source: %+v", cfg.Source)
+	}
+	if cfg.Exclude == nil || len(cfg.Exclude) != 0 {
+		t.Fatalf("unexpected exclude: %+v", cfg.Exclude)
+	}
+}
+
+func TestInitCmd_ErrorsWhenConfigExists(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	if err := writeConfig(configFile, defaultConfig()); err != nil {
+		t.Fatalf("writeConfig: %v", err)
+	}
+
+	if err := initCmd.RunE(initCmd, nil); err == nil || !strings.Contains(err.Error(), ".litcode.json already exists") {
+		t.Fatalf("expected already-exists error, got %v", err)
 	}
 }

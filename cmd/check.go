@@ -3,11 +3,11 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/semistrict/litcode/internal/checker"
+	"github.com/semistrict/litcode/internal/filematch"
 	"github.com/spf13/cobra"
 )
 
@@ -198,9 +198,17 @@ func docContext(docFile string, docLine int) string {
 	return strings.TrimRight(b.String(), "\n")
 }
 
-func readSourceFile(file string, sourceDirs []string) []string {
-	for _, dir := range sourceDirs {
-		data, err := os.ReadFile(filepath.Join(dir, file))
+func readSourceFile(file string, sourcePatterns []string) []string {
+	if data, err := os.ReadFile(file); err == nil {
+		return strings.Split(string(data), "\n")
+	}
+
+	sourceIndex, err := filematch.Index(sourcePatterns)
+	if err != nil {
+		return nil
+	}
+	if path, ok := sourceIndex[file]; ok {
+		data, err := os.ReadFile(path)
 		if err == nil {
 			return strings.Split(string(data), "\n")
 		}

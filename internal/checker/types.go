@@ -44,9 +44,9 @@ type Warning struct {
 
 // Config controls what Check scans.
 type Config struct {
-	DocsDirs   []string // directories to scan for .md files
-	SourceDirs []string // directories to resolve file= references against
-	Exclude    []string // glob patterns to exclude (matched against relative paths)
+	DocsDirs   []string // file patterns for markdown docs, relative to the current working directory
+	SourceDirs []string // file patterns for source files, relative to the current working directory
+	Exclude    []string // glob patterns to exclude (matched against project-relative paths)
 	Fix        bool     // when true, automatically fix minor mismatches in-place
 }
 

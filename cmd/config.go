@@ -9,10 +9,45 @@ import (
 type litcodeConfig struct {
 	Docs    []string `json:"docs"`
 	Source  []string `json:"source"`
-	Exclude []string `json:"exclude,omitempty"`
+	Exclude []string `json:"exclude"`
 }
 
 const configFile = ".litcode.json"
+
+func defaultConfig() litcodeConfig {
+	return litcodeConfig{
+		Docs: []string{
+			"docs/**/*.md",
+		},
+		Source: []string{
+			"**/*.go",
+			"**/*.ts",
+			"**/*.tsx",
+			"**/*.js",
+			"**/*.jsx",
+			"**/*.py",
+			"**/*.rs",
+			"**/*.java",
+			"**/*.c",
+			"**/*.h",
+			"**/*.cpp",
+			"**/*.hpp",
+		},
+		Exclude: []string{},
+	}
+}
+
+func writeConfig(path string, cfg litcodeConfig) error {
+	data, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshaling %s: %w", path, err)
+	}
+	data = append(data, '\n')
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		return fmt.Errorf("writing %s: %w", path, err)
+	}
+	return nil
+}
 
 func loadConfig() (litcodeConfig, error) {
 	data, err := os.ReadFile(configFile)

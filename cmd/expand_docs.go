@@ -2,8 +2,12 @@ package cmd
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/semistrict/litcode/internal/expanddocs"
+	"github.com/semistrict/litcode/internal/filematch"
 	"github.com/spf13/cobra"
 )
 
@@ -27,9 +31,23 @@ the fully expanded markdown to disk. Output defaults to ./out/expanded-docs.`,
 		if err != nil {
 			return err
 		}
-		for _, dir := range litcodeCfg.Docs {
-			if err := expanddocs.ExpandTree(dir, expandDocsOut, litcodeCfg.Source); err != nil {
-				return fmt.Errorf("expanding %s: %w", dir, err)
+		docMatches, err := filematch.Collect(litcodeCfg.Docs, func(relPath string) bool {
+			return strings.HasSuffix(relPath, ".md")
+		})
+		if err != nil {
+			return fmt.Errorf("collecting docs: %w", err)
+		}
+		for _, match := range docMatches {
+			expanded, err := expanddocs.ExpandedMarkdown(match.AbsPath, litcodeCfg.Source)
+			if err != nil {
+				return err
+			}
+			outPath := filepath.Join(expandDocsOut, filepath.FromSlash(match.RelPath))
+			if err := os.MkdirAll(filepath.Dir(outPath), 0o755); err != nil {
+				return err
+			}
+			if err := os.WriteFile(outPath, expanded, 0o644); err != nil {
+				return err
 			}
 		}
 		return nil

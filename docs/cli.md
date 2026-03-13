@@ -17,11 +17,11 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/semistrict/litcode/internal/checker"
+	"github.com/semistrict/litcode/internal/filematch"
 	"github.com/spf13/cobra"
 )
 ```

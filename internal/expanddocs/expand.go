@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/semistrict/litcode/internal/filematch"
 	"github.com/semistrict/litcode/internal/markdown"
 )
 
@@ -76,13 +77,9 @@ func ExpandedMarkdown(docPath string, sourceDirs []string) ([]byte, error) {
 	}
 	lines := strings.Split(string(data), "\n")
 
-	absSourceDirs := make([]string, 0, len(sourceDirs))
-	for _, dir := range sourceDirs {
-		abs, err := filepath.Abs(dir)
-		if err != nil {
-			return nil, err
-		}
-		absSourceDirs = append(absSourceDirs, abs)
+	sourceIndex, err := filematch.Index(sourceDirs)
+	if err != nil {
+		return nil, fmt.Errorf("collecting source files: %w", err)
 	}
 
 	resolveCache := make(map[string]string)
@@ -97,7 +94,7 @@ func ExpandedMarkdown(docPath string, sourceDirs []string) ([]byte, error) {
 			if cached, ok := resolveCache[block.File]; ok {
 				return cached, cached != ""
 			}
-			p, ok := resolveSourceFile(block.File, absSourceDirs)
+			p, ok := resolveSourceFile(block.File, sourceIndex)
 			if ok {
 				resolveCache[block.File] = p
 			} else {
@@ -175,14 +172,9 @@ func ExpandTree(srcDir, outDir string, sourceDirs []string) error {
 	})
 }
 
-func resolveSourceFile(file string, sourceDirs []string) (string, bool) {
-	for _, dir := range sourceDirs {
-		path := filepath.Join(dir, file)
-		if _, err := os.Stat(path); err == nil {
-			return path, true
-		}
-	}
-	return "", false
+func resolveSourceFile(file string, sourceIndex map[string]string) (string, bool) {
+	path, ok := sourceIndex[filepath.ToSlash(filepath.Clean(file))]
+	return path, ok
 }
 
 func readLines(path string) ([]string, error) {

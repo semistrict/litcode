@@ -41,6 +41,26 @@ func TestCheck_SampleAllCovered(t *testing.T) {
 	}
 }
 
+func TestCheck_SupportsFilePatterns(t *testing.T) {
+	base := filepath.Join(testdataDir(), "partial")
+	t.Chdir(base)
+
+	cfg := checker.Config{
+		DocsDirs:   []string{"docs/**/*.md"},
+		SourceDirs: []string{"src/**/*.go"},
+	}
+	result, err := checker.Check(cfg)
+	if err != nil {
+		t.Fatalf("Check: %v", err)
+	}
+	if len(result.Invalid) != 0 {
+		t.Fatalf("expected 0 invalid blocks, got %d", len(result.Invalid))
+	}
+	if len(result.Missing) == 0 {
+		t.Fatal("expected missing ranges, got none")
+	}
+}
+
 func TestCheck_MismatchDetected(t *testing.T) {
 	cfg := sampleConfig(filepath.Join(testdataDir(), "mismatch"))
 	result, err := checker.Check(cfg)

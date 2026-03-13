@@ -14,6 +14,7 @@ import (
 	chromahtml "github.com/alecthomas/chroma/v2/formatters/html"
 	"github.com/alecthomas/chroma/v2/styles"
 	"github.com/semistrict/litcode/internal/expanddocs"
+	"github.com/semistrict/litcode/internal/filematch"
 	"github.com/yuin/goldmark"
 	highlighting "github.com/yuin/goldmark-highlighting/v2"
 	"github.com/yuin/goldmark/extension"
@@ -127,13 +128,7 @@ var (
 `))
 )
 
-// RenderTree renders all markdown files under srcDir to HTML under outDir,
-// preserving the relative directory structure and replacing .md with .html.
-func RenderTree(srcDir, outDir string, sourceDirs []string, out io.Writer) error {
-	absSrc, err := filepath.Abs(srcDir)
-	if err != nil {
-		return err
-	}
+func RenderFile(srcPath, relPath, outDir string, sourceDirs []string, out io.Writer) error {
 	absOut, err := filepath.Abs(outDir)
 	if err != nil {
 		return err
@@ -142,8 +137,12 @@ func RenderTree(srcDir, outDir string, sourceDirs []string, out io.Writer) error
 	if err != nil {
 		return err
 	}
-
 	if err := os.MkdirAll(absOut, 0o755); err != nil {
+		return err
+	}
+
+	outPath := filepath.Join(absOut, strings.TrimSuffix(filepath.FromSlash(relPath), ".md")+".html")
+	if err := os.MkdirAll(filepath.Dir(outPath), 0o755); err != nil {
 		return err
 	}
 
@@ -162,44 +161,51 @@ func RenderTree(srcDir, outDir string, sourceDirs []string, out io.Writer) error
 		goldmark.WithRendererOptions(gmhtml.WithUnsafe()),
 	)
 
-	return filepath.Walk(absSrc, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if info.IsDir() || filepath.Ext(path) != ".md" {
-			return nil
-		}
+	src, err := expanddocs.ExpandedMarkdown(srcPath, sourceDirs)
+	if err != nil {
+		return fmt.Errorf("expand %s: %w", srcPath, err)
+	}
 
-		rel, err := filepath.Rel(absSrc, path)
-		if err != nil {
-			return err
+	page, err := renderPage(renderer, filepath.Base(srcPath), src)
+	if err != nil {
+		return fmt.Errorf("render %s: %w", srcPath, err)
+	}
+	if err := os.WriteFile(outPath, page, 0o644); err != nil {
+		return err
+	}
+	if out != nil {
+		displayPath := outPath
+		if relOut, err := filepath.Rel(cwd, outPath); err == nil && relOut != "" && relOut != "." && !strings.HasPrefix(relOut, ".."+string(os.PathSeparator)) && relOut != ".." {
+			displayPath = relOut
 		}
-		outPath := filepath.Join(absOut, strings.TrimSuffix(rel, ".md")+".html")
-		if err := os.MkdirAll(filepath.Dir(outPath), 0o755); err != nil {
-			return err
-		}
+		fmt.Fprintln(out, displayPath)
+	}
+	return nil
+}
 
-		src, err := expanddocs.ExpandedMarkdown(path, sourceDirs)
-		if err != nil {
-			return fmt.Errorf("expand %s: %w", path, err)
-		}
-
-		page, err := renderPage(renderer, filepath.Base(path), src)
-		if err != nil {
-			return fmt.Errorf("render %s: %w", path, err)
-		}
-		if err := os.WriteFile(outPath, page, 0o644); err != nil {
-			return err
-		}
-		if out != nil {
-			displayPath := outPath
-			if relPath, err := filepath.Rel(cwd, outPath); err == nil && relPath != "" && relPath != "." && !strings.HasPrefix(relPath, ".."+string(os.PathSeparator)) && relPath != ".." {
-				displayPath = relPath
-			}
-			fmt.Fprintln(out, displayPath)
-		}
-		return nil
+// RenderTree renders all markdown files under srcDir to HTML under outDir,
+// preserving the relative directory structure and replacing .md with .html.
+func RenderTree(srcDir, outDir string, sourceDirs []string, out io.Writer) error {
+	absSrc, err := filepath.Abs(srcDir)
+	if err != nil {
+		return err
+	}
+	docMatches, err := filematch.Collect([]string{srcDir}, func(relPath string) bool {
+		return strings.HasSuffix(relPath, ".md")
 	})
+	if err != nil {
+		return err
+	}
+	for _, match := range docMatches {
+		relPath, err := filepath.Rel(absSrc, match.AbsPath)
+		if err != nil {
+			return err
+		}
+		if err := RenderFile(match.AbsPath, filepath.ToSlash(relPath), outDir, sourceDirs, out); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func renderPage(renderer goldmark.Markdown, filename string, src []byte) ([]byte, error) {

@@ -3,7 +3,9 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
 
+	"github.com/semistrict/litcode/internal/filematch"
 	"github.com/semistrict/litcode/internal/renderdocs"
 	"github.com/spf13/cobra"
 )
@@ -28,9 +30,15 @@ live diagrams. Output defaults to ./out/docs.`,
 		if err != nil {
 			return err
 		}
-		for _, dir := range litcodeCfg.Docs {
-			if err := renderdocs.RenderTree(dir, renderDocsOut, litcodeCfg.Source, os.Stdout); err != nil {
-				return fmt.Errorf("rendering %s: %w", dir, err)
+		docMatches, err := filematch.Collect(litcodeCfg.Docs, func(relPath string) bool {
+			return strings.HasSuffix(relPath, ".md")
+		})
+		if err != nil {
+			return fmt.Errorf("collecting docs: %w", err)
+		}
+		for _, match := range docMatches {
+			if err := renderdocs.RenderFile(match.AbsPath, match.RelPath, renderDocsOut, litcodeCfg.Source, os.Stdout); err != nil {
+				return err
 			}
 		}
 		return nil

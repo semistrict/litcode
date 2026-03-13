@@ -9,41 +9,27 @@ import (
 
 	"github.com/semistrict/litcode/internal/comments"
 	"github.com/semistrict/litcode/internal/expanddocs"
+	"github.com/semistrict/litcode/internal/filematch"
 	"github.com/semistrict/litcode/internal/markdown"
 )
 
 // Check validates all markdown code blocks in DocsDirs against source files
 // found in SourceDirs.
 func Check(cfg Config) (*Result, error) {
-	// Collect all markdown files from docs dirs.
-	var mdFiles []string
-	for _, dir := range cfg.DocsDirs {
-		absDir, err := filepath.Abs(dir)
-		if err != nil {
-			return nil, err
-		}
-		err = filepath.Walk(absDir, func(path string, info os.FileInfo, err error) error {
-			if err != nil {
-				return err
-			}
-			if !info.IsDir() && strings.HasSuffix(path, ".md") {
-				mdFiles = append(mdFiles, path)
-			}
-			return nil
-		})
-		if err != nil {
-			return nil, fmt.Errorf("walking docs dir %s: %w", dir, err)
-		}
+	docMatches, err := filematch.Collect(cfg.DocsDirs, func(relPath string) bool {
+		return strings.HasSuffix(relPath, ".md")
+	})
+	if err != nil {
+		return nil, fmt.Errorf("collecting docs: %w", err)
+	}
+	mdFiles := make([]string, 0, len(docMatches))
+	for _, match := range docMatches {
+		mdFiles = append(mdFiles, match.AbsPath)
 	}
 
-	// Resolve sourceDirs to absolute paths.
-	var absSourceDirs []string
-	for _, dir := range cfg.SourceDirs {
-		abs, err := filepath.Abs(dir)
-		if err != nil {
-			return nil, err
-		}
-		absSourceDirs = append(absSourceDirs, abs)
+	sourceIndex, err := filematch.Index(cfg.SourceDirs)
+	if err != nil {
+		return nil, fmt.Errorf("collecting source files: %w", err)
 	}
 
 	// Build exclude lists. User-supplied excludes skip both validation and
@@ -98,7 +84,7 @@ func Check(cfg Config) (*Result, error) {
 			if cached, ok := resolveCache[block.File]; ok {
 				return cached, cached != ""
 			}
-			p, ok := resolveSourceFile(block.File, absSourceDirs)
+			p, ok := resolveSourceFile(block.File, sourceIndex)
 			if ok {
 				resolveCache[block.File] = p
 			} else {
@@ -118,11 +104,11 @@ func Check(cfg Config) (*Result, error) {
 			continue
 		}
 
-		if isExcluded(srcPath, absSourceDirs, validationExcludes) {
+		if isExcluded(srcPath, cfg.SourceDirs, validationExcludes) {
 			continue
 		}
 
-		if !isExcluded(srcPath, absSourceDirs, coverageExcludes) {
+		if !isExcluded(srcPath, cfg.SourceDirs, coverageExcludes) {
 			referencedFiles[srcPath] = true
 		}
 
@@ -530,7 +516,7 @@ func Check(cfg Config) (*Result, error) {
 			uncovered = append(uncovered, lineNum)
 		}
 
-		displayPath := displayRelPath(absPath, absSourceDirs)
+		displayPath := displayRelPath(absPath, cfg.SourceDirs)
 		result.Missing = append(result.Missing, mergeRanges(displayPath, uncovered)...)
 	}
 
@@ -544,76 +530,69 @@ func Check(cfg Config) (*Result, error) {
 	return &result, nil
 }
 
-func isExcluded(absPath string, sourceDirs []string, patterns []string) bool {
-	for _, sd := range sourceDirs {
-		rel, err := filepath.Rel(sd, absPath)
+func isExcluded(absPath string, sourcePatterns []string, patterns []string) bool {
+	rel := displayRelPath(absPath, sourcePatterns)
+	for _, pattern := range patterns {
+		if filematch.MatchPath(pattern, rel) || filematch.MatchPath(pattern, filepath.Base(rel)) {
+			return true
+		}
+	}
+	return false
+}
+
+func displayRelPath(absPath string, sourcePatterns []string) string {
+	candidates := candidateRelPaths(absPath, sourcePatterns)
+	if len(candidates) == 0 {
+		return filematch.RelPath(absPath)
+	}
+	best := candidates[0]
+	for _, candidate := range candidates[1:] {
+		if len(candidate) < len(best) {
+			best = candidate
+		}
+	}
+	return best
+}
+
+func candidateRelPaths(absPath string, sourcePatterns []string) []string {
+	seen := make(map[string]bool)
+	var paths []string
+
+	add := func(path string) {
+		path = filepath.ToSlash(filepath.Clean(path))
+		if path == "." || path == "" || seen[path] {
+			return
+		}
+		seen[path] = true
+		paths = append(paths, path)
+	}
+
+	add(filematch.RelPath(absPath))
+
+	for _, pattern := range sourcePatterns {
+		if strings.ContainsAny(pattern, "*?[") {
+			continue
+		}
+		info, err := os.Stat(pattern)
+		if err != nil || !info.IsDir() {
+			continue
+		}
+		absRoot, err := filepath.Abs(pattern)
+		if err != nil {
+			continue
+		}
+		rel, err := filepath.Rel(absRoot, absPath)
 		if err != nil || strings.HasPrefix(rel, "..") {
 			continue
 		}
-		for _, pattern := range patterns {
-			if matched, _ := filepath.Match(pattern, rel); matched {
-				return true
-			}
-			if matched, _ := filepath.Match(pattern, filepath.Base(rel)); matched {
-				return true
-			}
-			// Handle ** patterns by checking if any path segment matches.
-			if strings.Contains(pattern, "**") {
-				if matchDoublestar(pattern, rel) {
-					return true
-				}
-			}
-		}
+		add(rel)
 	}
-	return false
+
+	return paths
 }
 
-// matchDoublestar provides basic ** glob support.
-func matchDoublestar(pattern, path string) bool {
-	// Split on ** and check prefix/suffix matching.
-	parts := strings.SplitN(pattern, "**", 2)
-	if len(parts) != 2 {
-		return false
-	}
-	prefix := strings.TrimSuffix(parts[0], string(filepath.Separator))
-	suffix := strings.TrimPrefix(parts[1], string(filepath.Separator))
-
-	// Check if path contains the prefix directory.
-	pathParts := strings.Split(path, string(filepath.Separator))
-	for i, part := range pathParts {
-		if prefix == "" || part == prefix {
-			// Check remaining path against suffix.
-			remaining := strings.Join(pathParts[i+1:], string(filepath.Separator))
-			if suffix == "" {
-				return true
-			}
-			if matched, _ := filepath.Match(suffix, remaining); matched {
-				return true
-			}
-			if matched, _ := filepath.Match(suffix, filepath.Base(remaining)); matched {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-func displayRelPath(absPath string, sourceDirs []string) string {
-	for _, sd := range sourceDirs {
-		if rel, err := filepath.Rel(sd, absPath); err == nil && !strings.HasPrefix(rel, "..") {
-			return rel
-		}
-	}
-	return absPath
-}
-
-// resolveSourceFile looks for file in each source dir, returns the first match.
-func resolveSourceFile(file string, sourceDirs []string) (string, bool) {
-	for _, dir := range sourceDirs {
-		path := filepath.Join(dir, file)
-		if _, err := os.Stat(path); err == nil {
-			return path, true
-		}
-	}
-	return "", false
+// resolveSourceFile looks for file in the matched source files.
+func resolveSourceFile(file string, sourceIndex map[string]string) (string, bool) {
+	path, ok := sourceIndex[filepath.ToSlash(filepath.Clean(file))]
+	return path, ok
 }

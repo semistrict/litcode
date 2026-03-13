@@ -123,7 +123,7 @@ entirely:
 			if cached, ok := resolveCache[block.File]; ok {
 				return cached, cached != ""
 			}
-			p, ok := resolveSourceFile(block.File, absSourceDirs)
+			p, ok := resolveSourceFile(block.File, sourceIndex)
 			if ok {
 				resolveCache[block.File] = p
 			} else {
@@ -143,7 +143,7 @@ entirely:
 			continue
 		}
 
-		if isExcluded(srcPath, absSourceDirs, validationExcludes) {
+		if isExcluded(srcPath, validationExcludes) {
 			continue
 		}
 ```
@@ -612,7 +612,7 @@ are excluded:
 			uncovered = append(uncovered, lineNum)
 		}
 
-		displayPath := displayRelPath(absPath, absSourceDirs)
+		displayPath := displayRelPath(absPath)
 		result.Missing = append(result.Missing, mergeRanges(displayPath, uncovered)...)
 	}
 
