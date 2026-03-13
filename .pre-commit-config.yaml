@@ -21,4 +21,5 @@ repos:
         name: litcode check
         entry: go run . check
         language: system
-        pass_filenames: true
+        pass_filenames: false
+        types_or: [go, markdown]

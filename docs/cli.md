@@ -64,7 +64,7 @@ cobra from printing usage on validation errors:
 
 ```go file=cmd/check.go
 var checkCmd = &cobra.Command{
-	Use:           "check",
+	Use:           "check [files...]",
 	Short:         "Check that docs cover all source lines",
 	SilenceUsage:  true,
 	SilenceErrors: true,
@@ -95,6 +95,7 @@ The `RunE` function loads `.litcode.json`, builds a `Config`, and calls
 			SourceDirs: litcodeCfg.Source,
 			Lenient:    litcodeCfg.Lenient,
 			Exclude:    litcodeCfg.Exclude,
+			Files:      args,
 		}
 
 		result, err := checker.Check(cfg)
@@ -267,13 +268,21 @@ func printMissing(missing []checker.MissingRange, sourceDirs []string) {
 
 ## Reading source files
 
-The `readSourceFile` helper tries each source directory in order and returns
-the file contents split into lines, or nil if the file is not found:
+The `readSourceFile` helper first tries reading the file directly, then falls
+back to using the `filematch` index to resolve the path:
 
 ```go file=cmd/check.go
-func readSourceFile(file string, sourceDirs []string) []string {
-	for _, dir := range sourceDirs {
-		data, err := os.ReadFile(filepath.Join(dir, file))
+func readSourceFile(file string, sourcePatterns []string) []string {
+	if data, err := os.ReadFile(file); err == nil {
+		return strings.Split(string(data), "\n")
+	}
+
+	sourceIndex, err := filematch.Index(sourcePatterns)
+	if err != nil {
+		return nil
+	}
+	if path, ok := sourceIndex[file]; ok {
+		data, err := os.ReadFile(path)
 		if err == nil {
 			return strings.Split(string(data), "\n")
 		}

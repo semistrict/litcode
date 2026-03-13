@@ -82,12 +82,11 @@ markdown file looking for opening fences, then collects content lines until
 it hits a closing fence:
 
 ```go file=internal/markdown/parser.go
-func ParseFile(path string) ([]CodeBlock, error) {
+func ParseFile(path string) (_ []CodeBlock, err error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
 ```
 
 We set up a scanner and track the current line number. The `current` pointer

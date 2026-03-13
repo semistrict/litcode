@@ -38,7 +38,10 @@ func rewriteBlock(docFile string, docLine int, oldContent, newContent []string, 
 	rebuilt = append(rebuilt, newContent...)
 	rebuilt = append(rebuilt, lines[contentEnd:]...)
 
-	os.WriteFile(docFile, []byte(strings.Join(rebuilt, "\n")), 0o644)
+	if err := os.WriteFile(docFile, []byte(strings.Join(rebuilt, "\n")), 0o644); err != nil {
+		return
+	}
+}
 ```
 
 `updateLinesAnnotation` finds and replaces the `lines=N-M` portion of a fence

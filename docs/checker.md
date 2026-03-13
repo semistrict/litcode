@@ -6,29 +6,20 @@
 
 ## Phase 1: Collect and parse markdown files
 
-First, it walks each docs directory to find `.md` files:
+First, it collects markdown files from the configured doc directories using the
+`filematch` package:
 
 ```go file=internal/checker/checker.go
 func Check(cfg Config) (*Result, error) {
-	// Collect all markdown files from docs dirs.
-	var mdFiles []string
-	for _, dir := range cfg.DocsDirs {
-		absDir, err := filepath.Abs(dir)
-		if err != nil {
-			return nil, err
-		}
-		err = filepath.Walk(absDir, func(path string, info os.FileInfo, err error) error {
-			if err != nil {
-				return err
-			}
-			if !info.IsDir() && strings.HasSuffix(path, ".md") {
-				mdFiles = append(mdFiles, path)
-			}
-			return nil
-		})
-		if err != nil {
-			return nil, fmt.Errorf("walking docs dir %s: %w", dir, err)
-		}
+	docMatches, err := filematch.Collect(cfg.DocsDirs, func(relPath string) bool {
+		return strings.HasSuffix(relPath, ".md")
+	})
+	if err != nil {
+		return nil, fmt.Errorf("collecting docs: %w", err)
+	}
+	mdFiles := make([]string, 0, len(docMatches))
+	for _, match := range docMatches {
+		mdFiles = append(mdFiles, match.AbsPath)
 	}
 ```
 
@@ -62,6 +53,44 @@ Each markdown file is parsed to extract code blocks:
 			return nil, fmt.Errorf("parsing %s: %w", mf, err)
 		}
 		allBlocks = append(allBlocks, blocks...)
+	}
+```
+
+When `Files` is set (e.g. from the pre-commit hook passing specific filenames),
+blocks are filtered to only those from matching doc files or referencing matching
+source files:
+
+```go file=internal/checker/checker.go
+	if len(cfg.Files) > 0 {
+		fileSet := make(map[string]bool, len(cfg.Files))
+		for _, f := range cfg.Files {
+			abs, err := filepath.Abs(f)
+			if err == nil {
+				fileSet[abs] = true
+			}
+			// Also store the original (for relative source file matching).
+			fileSet[filepath.ToSlash(filepath.Clean(f))] = true
+		}
+		var filtered []markdown.CodeBlock
+		for _, block := range allBlocks {
+			// Match by doc file (absolute path).
+			if fileSet[block.DocFile] {
+				filtered = append(filtered, block)
+				continue
+			}
+			// Match by source file reference.
+			srcRel := filepath.ToSlash(filepath.Clean(block.File))
+			if fileSet[srcRel] {
+				filtered = append(filtered, block)
+				continue
+			}
+			// Match by resolved absolute source path.
+			if absPath, ok := sourceIndex[srcRel]; ok && fileSet[absPath] {
+				filtered = append(filtered, block)
+				continue
+			}
+		}
+		allBlocks = filtered
 	}
 ```
 
@@ -139,7 +168,7 @@ entirely:
 			continue
 		}
 
-		if isExcluded(srcPath, validationExcludes) {
+		if isExcluded(srcPath, cfg.SourceDirs, validationExcludes) {
 			continue
 		}
 ```
@@ -149,7 +178,7 @@ coverage. Test code can still be validated, but it is not added to
 `referencedFiles` unless it is outside the coverage exclude list:
 
 ```go file=internal/checker/checker.go
-		if !isExcluded(srcPath, absSourceDirs, coverageExcludes) {
+		if !isExcluded(srcPath, cfg.SourceDirs, coverageExcludes) {
 			referencedFiles[srcPath] = true
 		}
 ```
@@ -608,7 +637,7 @@ are excluded:
 			uncovered = append(uncovered, lineNum)
 		}
 
-		displayPath := displayRelPath(absPath)
+		displayPath := displayRelPath(absPath, cfg.SourceDirs)
 		result.Missing = append(result.Missing, mergeRanges(displayPath, uncovered)...)
 	}
 
@@ -625,64 +654,15 @@ are excluded:
 
 ## File exclusion
 
-The `isExcluded` function checks a file's relative path against all exclusion
-patterns. It handles both simple globs and `**` patterns:
+The `isExcluded` function converts the absolute path to a display-relative path,
+then checks it against each exclusion pattern using `filematch.MatchPath`:
 
 ```go file=internal/checker/checker.go
-func isExcluded(absPath string, sourceDirs []string, patterns []string) bool {
-	for _, sd := range sourceDirs {
-		rel, err := filepath.Rel(sd, absPath)
-		if err != nil || strings.HasPrefix(rel, "..") {
-			continue
-		}
-		for _, pattern := range patterns {
-			if matched, _ := filepath.Match(pattern, rel); matched {
-				return true
-			}
-			if matched, _ := filepath.Match(pattern, filepath.Base(rel)); matched {
-				return true
-			}
-			// Handle ** patterns by checking if any path segment matches.
-			if strings.Contains(pattern, "**") {
-				if matchDoublestar(pattern, rel) {
-					return true
-				}
-			}
-		}
-	}
-	return false
-}
-```
-
-The `matchDoublestar` helper provides basic `**` glob support by splitting the
-pattern on `**` and checking if any path segment matches the prefix, with the
-remaining path matching the suffix:
-
-```go file=internal/checker/checker.go
-func matchDoublestar(pattern, path string) bool {
-	// Split on ** and check prefix/suffix matching.
-	parts := strings.SplitN(pattern, "**", 2)
-	if len(parts) != 2 {
-		return false
-	}
-	prefix := strings.TrimSuffix(parts[0], string(filepath.Separator))
-	suffix := strings.TrimPrefix(parts[1], string(filepath.Separator))
-
-	// Check if path contains the prefix directory.
-	pathParts := strings.Split(path, string(filepath.Separator))
-	for i, part := range pathParts {
-		if prefix == "" || part == prefix {
-			// Check remaining path against suffix.
-			remaining := strings.Join(pathParts[i+1:], string(filepath.Separator))
-			if suffix == "" {
-				return true
-			}
-			if matched, _ := filepath.Match(suffix, remaining); matched {
-				return true
-			}
-			if matched, _ := filepath.Match(suffix, filepath.Base(remaining)); matched {
-				return true
-			}
+func isExcluded(absPath string, sourcePatterns []string, patterns []string) bool {
+	rel := displayRelPath(absPath, sourcePatterns)
+	for _, pattern := range patterns {
+		if filematch.MatchPath(pattern, rel) || filematch.MatchPath(pattern, filepath.Base(rel)) {
+			return true
 		}
 	}
 	return false
@@ -691,34 +671,77 @@ func matchDoublestar(pattern, path string) bool {
 
 ## Display paths
 
-`displayRelPath` converts an absolute path back to a relative path for
-user-friendly output:
+`displayRelPath` converts an absolute path to the shortest relative path by
+trying each source directory as a root. It delegates to `candidateRelPaths` and
+picks the shortest candidate:
 
 ```go file=internal/checker/checker.go
-func displayRelPath(absPath string, sourceDirs []string) string {
-	for _, sd := range sourceDirs {
-		if rel, err := filepath.Rel(sd, absPath); err == nil && !strings.HasPrefix(rel, "..") {
-			return rel
+func displayRelPath(absPath string, sourcePatterns []string) string {
+	candidates := candidateRelPaths(absPath, sourcePatterns)
+	if len(candidates) == 0 {
+		return filematch.RelPath(absPath)
+	}
+	best := candidates[0]
+	for _, candidate := range candidates[1:] {
+		if len(candidate) < len(best) {
+			best = candidate
 		}
 	}
-	return absPath
+	return best
+}
+```
+
+`candidateRelPaths` builds a list of possible relative paths for a file. It
+starts with the working-directory-relative path, then tries each non-glob
+source pattern as a directory root:
+
+```go file=internal/checker/checker.go
+func candidateRelPaths(absPath string, sourcePatterns []string) []string {
+	seen := make(map[string]bool)
+	var paths []string
+
+	add := func(path string) {
+		path = filepath.ToSlash(filepath.Clean(path))
+		if path == "." || path == "" || seen[path] {
+			return
+		}
+		seen[path] = true
+		paths = append(paths, path)
+	}
+
+	add(filematch.RelPath(absPath))
+
+	for _, pattern := range sourcePatterns {
+		if strings.ContainsAny(pattern, "*?[") {
+			continue
+		}
+		info, err := os.Stat(pattern)
+		if err != nil || !info.IsDir() {
+			continue
+		}
+		absRoot, err := filepath.Abs(pattern)
+		if err != nil {
+			continue
+		}
+		rel, err := filepath.Rel(absRoot, absPath)
+		if err != nil || strings.HasPrefix(rel, "..") {
+			continue
+		}
+		add(rel)
+	}
+
+	return paths
 }
 ```
 
 ## Source file resolution
 
-`resolveSourceFile` searches the source directories in order and returns the
-first path where the file exists:
+`resolveSourceFile` looks up a file reference in the pre-built source index:
 
 ```go file=internal/checker/checker.go
-func resolveSourceFile(file string, sourceDirs []string) (string, bool) {
-	for _, dir := range sourceDirs {
-		path := filepath.Join(dir, file)
-		if _, err := os.Stat(path); err == nil {
-			return path, true
-		}
-	}
-	return "", false
+func resolveSourceFile(file string, sourceIndex map[string]string) (string, bool) {
+	path, ok := sourceIndex[filepath.ToSlash(filepath.Clean(file))]
+	return path, ok
 }
 ```
 
