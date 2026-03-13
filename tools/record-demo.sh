@@ -18,11 +18,13 @@ if ! command -v vhs >/dev/null 2>&1; then
   exit 1
 fi
 
-tmp_dir="$(mktemp -d)"
+tmp_dir="/tmp/litcode-demo"
 cleanup() {
   rm -rf "$tmp_dir"
 }
 trap cleanup EXIT
+
+rm -rf "$tmp_dir"
 
 demo_bin_dir="$tmp_dir/bin"
 demo_project_dir="$tmp_dir/project"
@@ -66,7 +68,7 @@ Set Width 1100
 Set Height 760
 Set Padding 24
 Set Framerate 24
-Set Theme "Catppuccin Latte"
+Set Theme "Catppuccin Mocha"
 Set WindowBar Colorful
 Set TypingSpeed 55ms
 
@@ -79,17 +81,46 @@ Enter
 Sleep 300ms
 Show
 
-Type "pwd"
-Enter
-Sleep 800ms
-
 Type "litcode init"
 Enter
 Sleep 1500ms
 
-Type "sed -n '1,28p' .litcode.json"
+Type "sed -n '1,18p' docs/overview.md"
+Enter
+Sleep 1800ms
+
+Type "cat > src/hello.go <<'EOF'"
+Enter
+Sleep 300ms
+Type "package main"
+Enter
+Type ""
+Enter
+Type "func hello() string {"
+Enter
+Type "    return \`hello again\`"
+Enter
+Type "}"
+Enter
+Type "EOF"
+Enter
+Sleep 900ms
+
+Type "sed -n '1,8p' src/hello.go"
+Enter
+Sleep 1600ms
+
+Type "litcode check"
 Enter
 Sleep 2200ms
+
+Type "litcode fix"
+Enter
+Sleep 1800ms
+
+Type "sed -n '1,18p' docs/overview.md"
+Enter
+Sleep 1800ms
 
 Type "litcode check"
 Enter
