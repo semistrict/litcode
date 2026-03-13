@@ -169,6 +169,85 @@ func TestCheck_MissingRemovalMention(t *testing.T) {
 	}
 }
 
+func TestCheck_FixUpdatesExternalMarkdown(t *testing.T) {
+	base := t.TempDir()
+	repoDir := filepath.Join(base, "repo")
+	docsDir := filepath.Join(base, "docs")
+	if err := os.MkdirAll(filepath.Join(repoDir, "src"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(docsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	writeFile(t, filepath.Join(repoDir, "src", "main.go"), strings.Join([]string{
+		"package main",
+		"",
+		"func OldThing(name string) string {",
+		"\tgreeting := \"old\"",
+		"\tsuffix := \"!\"",
+		"\treturn greeting + name + suffix",
+		"}",
+		"",
+	}, "\n"))
+
+	gitRun(t, repoDir, "init")
+	gitRun(t, repoDir, "config", "user.name", "Test User")
+	gitRun(t, repoDir, "config", "user.email", "test@example.com")
+	gitRun(t, repoDir, "add", "src/main.go")
+	gitRun(t, repoDir, "commit", "-m", "baseline")
+
+	t.Chdir(repoDir)
+
+	writeFile(t, filepath.Join(repoDir, "src", "main.go"), strings.Join([]string{
+		"package main",
+		"",
+		"func OldThing(name string) string {",
+		"\tgreeting := \"hello\"",
+		"\tsuffix := \"!\"",
+		"\treturn greeting + name + suffix",
+		"}",
+		"",
+	}, "\n"))
+
+	doc := filepath.Join(docsDir, "change.md")
+	writeFile(t, doc, strings.Join([]string{
+		"Removed the old greeting from OldThing in src/main.go.",
+		"",
+		"```go file=src/main.go lines=3-7",
+		"func OldThing(name string) string {",
+		"\tgreeting := \"old\"",
+		"\tsuffix := \"!\"",
+		"\treturn greeting + name + suffix",
+		"}",
+		"```",
+		"",
+	}, "\n"))
+
+	result, err := Check(Config{
+		DocsDirs:   []string{doc},
+		SourceDirs: []string{"src/**/*.go"},
+		Fix:        true,
+	})
+	if err != nil {
+		t.Fatalf("Check: %v", err)
+	}
+	if len(result.Fixed) != 1 {
+		t.Fatalf("len(Fixed) = %d, want 1; result=%+v", len(result.Fixed), result)
+	}
+	if len(result.Invalid) != 0 || len(result.MissingAdded) != 0 || len(result.MissingRemoved) != 0 {
+		t.Fatalf("unexpected result after fix: %+v", result)
+	}
+
+	updated, err := os.ReadFile(doc)
+	if err != nil {
+		t.Fatalf("ReadFile(doc): %v", err)
+	}
+	if !strings.Contains(string(updated), `greeting := "hello"`) {
+		t.Fatalf("fixed doc did not pick up updated source:\n%s", updated)
+	}
+}
+
 func TestCheck_SingleSHA(t *testing.T) {
 	repoDir, docsDir := setupRepo(t)
 	t.Chdir(repoDir)

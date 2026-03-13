@@ -14,7 +14,7 @@ Initialize a repository:
 litcode init
 ```
 
-That writes a `.litcode.json` with `docs`, `source`, `lenient`, and `exclude`
+That writes a `.litcode.jsonc` with `docs`, `source`, `lenient`, and `exclude`
 arrays using file patterns relative to the repository root. `lenient` files are
 still validated when referenced, but they do not require full line-by-line
 documentation coverage.

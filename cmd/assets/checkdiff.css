@@ -1,0 +1,274 @@
+body.litcode-review-enabled main {
+  max-width: none;
+  margin: 0;
+  padding: 2rem 29rem 4rem 1rem;
+}
+
+body.litcode-review-enabled article {
+  max-width: 56rem;
+  margin: 0 auto;
+}
+
+.litcode-review {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 27rem;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid rgba(123, 223, 242, 0.18);
+  background:
+    linear-gradient(180deg, rgba(18, 25, 34, 0.98), rgba(12, 17, 24, 0.98)),
+    #0f141b;
+  box-shadow: -18px 0 36px rgba(0, 0, 0, 0.24);
+  z-index: 20;
+}
+
+.litcode-review-header {
+  padding: 1rem;
+  border-bottom: 1px solid rgba(123, 223, 242, 0.16);
+  background: rgba(18, 25, 34, 0.96);
+}
+
+.litcode-review-header h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.05rem;
+}
+
+.litcode-review-doc {
+  margin: 0 0 0.8rem;
+  color: #9aa7b8;
+  font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 0.82rem;
+  overflow-wrap: anywhere;
+}
+
+.litcode-review-status {
+  margin: 0 0 0.8rem;
+  color: #9aa7b8;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.litcode-review-status[data-state="saved"] {
+  color: #9bf6ff;
+}
+
+.litcode-review-status[data-state="pending"] {
+  color: #f7f4ef;
+}
+
+.litcode-review-status[data-state="error"] {
+  color: #ffb4ab;
+}
+
+.litcode-review-summary {
+  width: 100%;
+  min-height: 5.5rem;
+  padding: 0.75rem 0.8rem;
+  border: 1px solid rgba(123, 223, 242, 0.18);
+  border-radius: 0.75rem;
+  background: rgba(32, 41, 56, 0.78);
+  color: #edf2f7;
+  font: inherit;
+  resize: vertical;
+}
+
+.litcode-review-done {
+  margin-top: 0.75rem;
+  border: 0;
+  border-radius: 999px;
+  padding: 0.65rem 1rem;
+  background: linear-gradient(135deg, #7bdff2, #9bf6ff);
+  color: #082533;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.litcode-review-done:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.litcode-review-comments {
+  flex: 1;
+  overflow: auto;
+  padding: 0.75rem;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.litcode-review-empty {
+  margin: 0;
+  padding: 0.9rem 1rem;
+  border: 1px dashed rgba(123, 223, 242, 0.18);
+  border-radius: 0.9rem;
+  color: #9aa7b8;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.litcode-review-comment {
+  margin: 0;
+  padding: 0.9rem 1rem;
+  border: 1px solid rgba(123, 223, 242, 0.18);
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.litcode-review-comment-quote {
+  margin: 0 0 0.7rem;
+  padding: 0 0 0 0.9rem;
+  border-left: 2px solid rgba(123, 223, 242, 0.28);
+  color: #edf2f7;
+  font-size: 0.84rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.litcode-review-comment-body {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: #9bf6ff;
+}
+
+.litcode-review-modal {
+  width: min(42rem, calc(100vw - 2rem));
+  margin: auto;
+  padding: 0;
+  border: 1px solid rgba(123, 223, 242, 0.24);
+  border-radius: 1rem;
+  background:
+    linear-gradient(180deg, rgba(23, 29, 38, 0.98), rgba(15, 20, 27, 0.98)),
+    #171d26;
+  color: #edf2f7;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
+}
+
+.litcode-review-modal::backdrop {
+  background: rgba(5, 8, 12, 0.72);
+  backdrop-filter: blur(4px);
+}
+
+.litcode-review-modal-card {
+  display: grid;
+  gap: 0.9rem;
+  margin: 0;
+  padding: 1.2rem;
+}
+
+.litcode-review-modal-title {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.litcode-review-modal-meta {
+  margin: 0;
+  color: #9aa7b8;
+  font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 0.8rem;
+  overflow-wrap: anywhere;
+}
+
+.litcode-review-modal-selection {
+  margin: 0;
+  padding: 0.8rem 0.9rem;
+  border-radius: 0.8rem;
+  background: rgba(255, 255, 255, 0.04);
+  color: #edf2f7;
+  font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 0.84rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.litcode-review-selection-button {
+  position: fixed;
+  z-index: 40;
+  border: 0;
+  border-radius: 999px;
+  padding: 0.55rem 0.9rem;
+  background: linear-gradient(135deg, #7bdff2, #9bf6ff);
+  color: #082533;
+  font-weight: 700;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+  cursor: pointer;
+}
+
+.litcode-review-selection-button[hidden] {
+  display: none;
+}
+
+.litcode-review-modal-input {
+  width: 100%;
+  min-height: 9rem;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid rgba(123, 223, 242, 0.2);
+  border-radius: 0.8rem;
+  background: rgba(32, 41, 56, 0.82);
+  color: #edf2f7;
+  font: inherit;
+  resize: vertical;
+}
+
+.litcode-review-modal-error {
+  min-height: 1.3rem;
+  margin: 0;
+  color: #ffb4ab;
+  font-size: 0.82rem;
+}
+
+.litcode-review-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.litcode-review-modal-cancel,
+.litcode-review-modal-save {
+  border-radius: 999px;
+  padding: 0.65rem 1rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.litcode-review-modal-cancel {
+  border: 1px solid rgba(123, 223, 242, 0.24);
+  background: transparent;
+  color: #edf2f7;
+}
+
+.litcode-review-modal-save {
+  border: 0;
+  background: linear-gradient(135deg, #7bdff2, #9bf6ff);
+  color: #082533;
+}
+
+.litcode-review-modal-cancel:disabled,
+.litcode-review-modal-save:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+@media (max-width: 1100px) {
+  body.litcode-review-enabled main {
+    padding: 1rem;
+  }
+
+  .litcode-review {
+    position: static;
+    width: auto;
+    height: auto;
+    margin: 1rem;
+    border: 1px solid rgba(123, 223, 242, 0.18);
+    border-radius: 1rem;
+  }
+
+  .litcode-review-comments {
+    max-height: 45vh;
+  }
+}

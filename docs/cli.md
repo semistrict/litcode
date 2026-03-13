@@ -2,7 +2,7 @@
 
 [Back to Overview](overview.md) | Previous: [Warnings](checker-warnings.md)
 
-The CLI layer loads `.litcode.json`, translates it into a `checker.Config`, and
+The CLI layer loads `.litcode.jsonc`, translates it into a `checker.Config`, and
 formats the results for the terminal.
 
 ## Package and imports
@@ -68,7 +68,7 @@ var checkCmd = &cobra.Command{
 	Short:         "Check that docs cover all source lines",
 	SilenceUsage:  true,
 	SilenceErrors: true,
-	Long: `Reads .litcode.json from the current directory and validates that markdown
+	Long: `Reads .litcode.jsonc from the current directory and validates that markdown
 documentation covers all non-comment source lines.
 
 1. Each code block's content matches the referenced source lines exactly.
@@ -81,7 +81,7 @@ Use "litcode fix" to automatically correct minor mismatches (line drift, whitesp
 
 ## Command execution
 
-The `RunE` function loads `.litcode.json`, builds a `Config`, and calls
+The `RunE` function loads `.litcode.jsonc`, builds a `Config`, and calls
 `checker.Check`:
 
 ```go file=cmd/check.go

@@ -93,7 +93,7 @@ func TestLoadConfig_Errors(t *testing.T) {
 	dir := t.TempDir()
 	t.Chdir(dir)
 
-	if _, err := loadConfig(); err == nil || !strings.Contains(err.Error(), "run litcode in a directory with a .litcode.json file") {
+	if _, err := loadConfig(); err == nil || !strings.Contains(err.Error(), "run litcode in a directory with a .litcode.jsonc file") {
 		t.Fatalf("expected missing-config error, got %v", err)
 	}
 
@@ -203,7 +203,7 @@ func TestInitCmd(t *testing.T) {
 		t.Fatalf("initCmd.RunE: %v", err)
 	}
 
-	if got := stdout.String(); !strings.Contains(got, "Created .litcode.json") {
+	if got := stdout.String(); !strings.Contains(got, "Created .litcode.jsonc") {
 		t.Fatalf("unexpected output: %q", got)
 	}
 
@@ -244,7 +244,7 @@ func TestInitCmd_ErrorsWhenConfigExists(t *testing.T) {
 		t.Fatalf("writeConfig: %v", err)
 	}
 
-	if err := initCmd.RunE(initCmd, nil); err == nil || !strings.Contains(err.Error(), ".litcode.json already exists") {
+	if err := initCmd.RunE(initCmd, nil); err == nil || !strings.Contains(err.Error(), ".litcode.jsonc already exists") {
 		t.Fatalf("expected already-exists error, got %v", err)
 	}
 }

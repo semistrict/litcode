@@ -34,7 +34,7 @@ var checkCmd = &cobra.Command{
 	Short:         "Check that docs cover all source lines",
 	SilenceUsage:  true,
 	SilenceErrors: true,
-	Long: `Reads .litcode.json from the current directory and validates that markdown
+	Long: `Reads .litcode.jsonc from the current directory and validates that markdown
 documentation covers all non-comment source lines.
 
 1. Each code block's content matches the referenced source lines exactly.

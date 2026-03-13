@@ -1,0 +1,29 @@
+{
+  // Markdown files to scan for documented code blocks.
+  "docs": [
+    "docs/**/*.md"
+  ],
+
+  // Source files that documentation can reference with file=...
+  "source": [
+    "**/*.go",
+    "**/*.ts",
+    "**/*.tsx",
+    "**/*.js",
+    "**/*.jsx",
+    "**/*.py",
+    "**/*.rs",
+    "**/*.java",
+    "**/*.c",
+    "**/*.h",
+    "**/*.cpp",
+    "**/*.hpp"
+  ],
+
+  // Source globs that are validated when referenced, but do not require
+  // line-by-line coverage in the docs.
+  "lenient": [],
+
+  // Globs to skip entirely from both validation and missing-coverage checks.
+  "exclude": []
+}

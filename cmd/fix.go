@@ -16,7 +16,7 @@ var fixCmd = &cobra.Command{
 	Short:         "Automatically fix minor doc/source mismatches",
 	SilenceUsage:  true,
 	SilenceErrors: true,
-	Long: `Reads .litcode.json from the current directory and automatically fixes minor
+	Long: `Reads .litcode.jsonc from the current directory and automatically fixes minor
 mismatches such as line drift and whitespace differences. Genuine content
 mismatches are reported but not modified.
 

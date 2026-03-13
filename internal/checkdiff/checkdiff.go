@@ -22,6 +22,7 @@ type Config struct {
 	Lenient    []string
 	Exclude    []string
 	GitArgs    []string
+	Fix        bool
 }
 
 type Result struct {
@@ -29,6 +30,7 @@ type Result struct {
 	Warnings       []checker.Warning
 	MissingAdded   []checker.MissingRange
 	MissingRemoved []RemovedMention
+	Fixed          []checker.FixedBlock
 }
 
 type RemovedMention struct {
@@ -110,6 +112,7 @@ func Check(cfg Config) (*Result, error) {
 			SourceDirs: cfg.SourceDirs,
 			Lenient:    cfg.Lenient,
 			Exclude:    cfg.Exclude,
+			Fix:        cfg.Fix,
 			Files:      changedFiles,
 		})
 		if err != nil {
@@ -122,6 +125,7 @@ func Check(cfg Config) (*Result, error) {
 		Warnings:       checkResult.Warnings,
 		MissingAdded:   missingAddedRanges(diffs, checkResult.Missing, referenced, cfg.SourceDirs, cfg.Lenient, cfg.Exclude, sourceIndex),
 		MissingRemoved: missingRemovedMentions(diffs, paragraphs, cfg.SourceDirs, cfg.Lenient, cfg.Exclude),
+		Fixed:          checkResult.Fixed,
 	}, nil
 }
 

@@ -15,7 +15,7 @@ type litcodeConfig struct {
 	Exclude []string `json:"exclude"`
 }
 
-const configFile = ".litcode.json"
+const configFile = ".litcode.jsonc"
 
 const defaultConfigJSONC = `{
   // Markdown files to scan for documented code blocks.
@@ -94,7 +94,7 @@ func writeDefaultConfig(path string) error {
 func loadConfig() (litcodeConfig, error) {
 	data, err := os.ReadFile(configFile)
 	if err != nil {
-		return litcodeConfig{}, fmt.Errorf("reading %s: %w (run litcode in a directory with a .litcode.json file)", configFile, err)
+		return litcodeConfig{}, fmt.Errorf("reading %s: %w (run litcode in a directory with a .litcode.jsonc file)", configFile, err)
 	}
 	var cfg litcodeConfig
 	if err := jsonc.Unmarshal(data, &cfg); err != nil {

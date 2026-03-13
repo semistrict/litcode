@@ -14,10 +14,10 @@ func init() {
 
 var initCmd = &cobra.Command{
 	Use:           "init",
-	Short:         "Create a default .litcode.json",
+	Short:         "Create a default .litcode.jsonc",
 	SilenceUsage:  true,
 	SilenceErrors: true,
-	Long:          "Creates a default .litcode.json in the current directory.",
+	Long:          "Creates a default .litcode.jsonc in the current directory.",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if _, err := os.Stat(configFile); err == nil {
 			return fmt.Errorf("%s already exists", configFile)

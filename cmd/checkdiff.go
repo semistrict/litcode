@@ -11,9 +11,10 @@ import (
 
 func init() {
 	checkdiffCmd.Flags().StringArrayVar(&checkdiffDocs, "docs", nil, "Markdown file(s) or glob(s) describing the diff; may live outside the repo")
-	checkdiffCmd.Flags().StringArrayVar(&checkdiffSource, "source", nil, "Source file globs to validate when .litcode.json is unavailable or should be overridden")
+	checkdiffCmd.Flags().StringArrayVar(&checkdiffSource, "source", nil, "Source file globs to validate when .litcode.jsonc is unavailable or should be overridden")
 	checkdiffCmd.Flags().StringArrayVar(&checkdiffLenient, "lenient", nil, "Source globs that are validated when referenced but excluded from added-line coverage requirements")
 	checkdiffCmd.Flags().StringArrayVar(&checkdiffExclude, "exclude", nil, "Source globs to skip entirely")
+	checkdiffCmd.Flags().BoolVar(&checkdiffFix, "fix", false, "automatically fix minor doc/source mismatches in the supplied markdown before re-checking the diff")
 	checkdiffCmd.Flags().BoolVar(&checkdiffServe, "serve", false, "after a passing check, render the supplied markdown to temporary HTML, serve it on localhost, and open it in a browser")
 	rootCmd.AddCommand(checkdiffCmd)
 }
@@ -23,6 +24,7 @@ var (
 	checkdiffSource  []string
 	checkdiffLenient []string
 	checkdiffExclude []string
+	checkdiffFix     bool
 	checkdiffServe   bool
 )
 
@@ -38,13 +40,14 @@ mentioned in markdown prose by symbol name and file, for example "Removed
 ParseConfig in cmd/config.go".
 
 The markdown files are provided explicitly via --docs and may live outside the
-repository. Source globs and exclusions come from .litcode.json in the current
+repository. Source globs and exclusions come from .litcode.jsonc in the current
 repository, unless overridden with --source/--lenient/--exclude.
 
 Examples:
 
   litcode checkdiff --docs ../notes/change.md
   litcode checkdiff --docs ../notes/change.md 1a2b3c4
+  litcode checkdiff --fix --docs ../notes/change.md
   litcode checkdiff --serve --docs ../notes/change.md
   litcode checkdiff --docs ../notes/change.md -- --cached -- cmd/check.go`,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -59,9 +62,17 @@ Examples:
 			Lenient:    cfg.Lenient,
 			Exclude:    cfg.Exclude,
 			GitArgs:    args,
+			Fix:        checkdiffFix,
 		})
 		if err != nil {
 			return err
+		}
+
+		if len(result.Fixed) > 0 {
+			errf("%s Fixed %d issue(s)\n", styleSuccess.Render("✓"), len(result.Fixed))
+			for _, f := range result.Fixed {
+				errf("  %s:%d — %s\n", styleFile.Render(f.DocFile), f.DocLine, f.Reason)
+			}
 		}
 
 		for _, w := range result.Warnings {
@@ -115,9 +126,9 @@ Examples:
 			return nil
 		}
 
-		if fixable > 0 {
+		if !checkdiffFix && fixable > 0 {
 			errf("\n%s %d changed block(s) can be fixed automatically with %s and then re-checked here.\n",
-				styleHint.Render("hint:"), fixable, styleHint.Render("litcode fix"))
+				styleHint.Render("hint:"), fixable, styleHint.Render("litcode checkdiff --fix"))
 		}
 
 		return fmt.Errorf("found %d invalid block(s), %d missing added range(s), and %d missing removal mention(s)",
@@ -147,7 +158,7 @@ func resolveCheckdiffConfig() (litcodeConfig, error) {
 	}
 
 	if len(cfg.Source) == 0 {
-		return litcodeConfig{}, errors.New(`checkdiff needs source globs; add .litcode.json or pass --source`)
+		return litcodeConfig{}, errors.New(`checkdiff needs source globs; add .litcode.jsonc or pass --source`)
 	}
 	return cfg, nil
 }

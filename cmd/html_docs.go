@@ -22,7 +22,7 @@ var htmlDocsCmd = &cobra.Command{
 	Short:         "Render markdown docs to HTML",
 	SilenceUsage:  true,
 	SilenceErrors: true,
-	Long: `Reads .litcode.json from the current directory and renders markdown documentation
+	Long: `Reads .litcode.jsonc from the current directory and renders markdown documentation
 to static HTML, preserving internal links and converting Mermaid fences into
 live diagrams. Output defaults to ./out/docs.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
